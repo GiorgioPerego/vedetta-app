@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vedetta</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+/* Layout: a Telegram mini app in the iOS grouped-list idiom. Colours come from the user's
+   Telegram theme (--tg-theme-*); the fb-* values are the fallback when opened in Safari. */
+:root {
+  --fb-bg: #f2f2f7; --fb-card: #ffffff; --fb-text: #000000; --fb-hint: #8e8e93; --fb-accent: #2481cc; --fb-accent-text: #ffffff;
+  --bg: var(--tg-theme-secondary-bg-color, var(--fb-bg));
+  --card: var(--tg-theme-section-bg-color, var(--tg-theme-bg-color, var(--fb-card)));
+  --text: var(--tg-theme-text-color, var(--fb-text));
+  --hint: var(--tg-theme-hint-color, var(--fb-hint));
+  --accent: var(--tg-theme-button-color, var(--fb-accent));
+  --accent-text: var(--tg-theme-button-text-color, var(--fb-accent-text));
+  --head: var(--tg-theme-section-header-text-color, var(--hint));
+  --sep: rgba(60, 60, 67, .16);
+  --good: #248a3d;
+  --cash: #8e8e93;
+  --bh: #c75c00;
+  --grid: rgba(60, 60, 67, .10);
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --round: -apple-system-ui-rounded, "SF Pro Rounded", var(--font);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-scheme="light"]) {
+    --fb-bg: #000000; --fb-card: #1c1c1e; --fb-text: #ffffff; --fb-hint: #8e8e93; --fb-accent: #3e88f7;
+    --sep: rgba(84, 84, 88, .45); --good: #30d158; --bh: #ff9f0a; --grid: rgba(255, 255, 255, .08);
+  }
+}
+:root[data-scheme="dark"] { --sep: rgba(84, 84, 88, .45); --good: #30d158; --bh: #ff9f0a; --grid: rgba(255, 255, 255, .08); }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.4 var(--font); -webkit-text-size-adjust: 100%; }
+main { max-width: 34rem; margin: 0 auto; padding: 14px max(16px, env(safe-area-inset-right, 0px)) calc(28px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; }
+h2 { margin: 22px 16px 7px; font: 400 13px/1.3 var(--font); text-transform: uppercase; letter-spacing: .02em; color: var(--head); }
+.card { background: var(--card); border-radius: 12px; overflow: hidden; }
+.pad { padding: 14px 16px; }
+.hint { color: var(--hint); font-size: 13px; line-height: 1.35; margin: 0; }
+.num { font-variant-numeric: tabular-nums; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* signal */
+.hero { padding: 18px 16px 16px; display: flex; flex-direction: column; gap: 10px; }
+.eyebrow { font-size: 13px; color: var(--hint); }
+.state { display: flex; align-items: center; gap: 10px; font: 700 30px/1.1 var(--round); letter-spacing: -.01em; }
+.dot { width: 12px; height: 12px; border-radius: 50%; background: var(--good); flex: none; }
+.is-cash .dot { background: var(--cash); }
+.meter { position: relative; height: 34px; margin-top: 4px; }
+.meter .track { position: absolute; left: 0; right: 0; top: 13px; height: 8px; border-radius: 4px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--cash) 35%, transparent) 50%, color-mix(in srgb, var(--good) 30%, transparent) 50%); }
+.meter .zero { position: absolute; left: 50%; top: 7px; width: 2px; height: 20px; background: var(--text); opacity: .55; transform: translateX(-1px); }
+.meter .mark { position: absolute; top: 9px; width: 16px; height: 16px; border-radius: 50%; background: var(--card); border: 3px solid var(--good); transform: translateX(-8px); }
+.is-cash .meter .mark { border-color: var(--cash); }
+.meter-scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--hint); }
+.hero-sub { font-size: 15px; }
+.rows { border-top: .5px solid var(--sep); }
+.kv { display: flex; justify-content: space-between; gap: 12px; padding: 11px 16px; border-bottom: .5px solid var(--sep); }
+.kv:last-child { border-bottom: 0; }
+.kv span:last-child { color: var(--hint); text-align: right; }
+
+/* stats */
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 14px 16px 6px; }
+.stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stat b { font: 600 19px/1.2 var(--round); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat span { font-size: 12px; color: var(--hint); }
+.stat .key { display: inline-block; width: 10px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+
+/* charts */
+.chart { position: relative; padding: 6px 8px 4px 0; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; touch-action: pan-y; }
+.chart text { fill: var(--hint); font: 400 10.5px var(--font); }
+.chart .grid { stroke: var(--grid); stroke-width: 1; }
+.chart .line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .thin { stroke-width: 1.5; }
+.chart .area { stroke: none; opacity: .12; }
+.chart .cross { stroke: var(--hint); stroke-width: 1; }
+.tip { position: absolute; top: 6px; pointer-events: none; background: var(--card); border: .5px solid var(--sep); border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .14); padding: 6px 8px; font-size: 12px; line-height: 1.35; white-space: nowrap; }
+.tip b { font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 0 16px 12px; font-size: 12px; color: var(--hint); }
+.legend i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+
+/* settings */
+.set { display: flex; flex-direction: column; }
+.set .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; min-height: 48px; border-bottom: .5px solid var(--sep); }
+.set .row:last-child { border-bottom: 0; }
+.set .col { flex-direction: column; align-items: stretch; gap: 9px; padding-block: 12px; }
+.stepper { display: flex; align-items: center; gap: 2px; }
+.stepper button { width: 38px; height: 34px; border: 0; border-radius: 9px; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); font-size: 21px; line-height: 1; cursor: pointer; }
+.stepper button:disabled { opacity: .35; }
+.stepper input { width: 86px; height: 34px; border: 0; background: transparent; text-align: center; font: 600 18px var(--round); font-variant-numeric: tabular-nums; }
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px; border-radius: 9px; background: color-mix(in srgb, var(--hint) 18%, transparent); }
+.seg button { border: 0; border-radius: 7px; padding: 7px 4px; background: transparent; font-size: 14px; cursor: pointer; }
+.seg button[aria-checked="true"] { background: var(--card); font-weight: 600; box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+select { border: 0; background: transparent; color: var(--accent); text-align: right; font-size: 16px; padding: 4px 0; }
+.note { margin: 8px 16px 0; }
+.save { margin: 14px 0 0; border: 0; border-radius: 12px; padding: 14px; background: var(--accent); color: var(--accent-text); font-weight: 600; font-size: 16px; cursor: pointer; }
+.save:disabled { opacity: .45; }
+.empty { padding: 28px 16px; text-align: center; }
+.footer { margin: 22px 16px 0; text-align: center; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<main id="app">
+  <section class="card hero" id="hero">
+    <div class="eyebrow" id="rule">S&amp;P 500</div>
+    <div class="state"><span class="dot" aria-hidden="true"></span><span id="state">–</span></div>
+    <div>
+      <div class="meter" id="meter" role="img" aria-label=""><div class="track"></div><div class="zero"></div><div class="mark" id="mark"></div></div>
+      <div class="meter-scale"><span>−10%</span><span>media 10 mesi</span><span>+10%</span></div>
+    </div>
+    <div class="hero-sub" id="hero-sub"></div>
+  </section>
+  <div class="card rows" style="margin-top:10px">
+    <div class="kv"><span>Prossima decisione</span><span class="num" id="next"></span></div>
+    <div class="kv"><span id="since-label">Investito dal</span><span class="num" id="since"></span></div>
+  </div>
+
+  <h2>Questo mese</h2>
+  <section class="card pad"><p id="action" style="margin:0"></p></section>
+
+  <h2>Il tuo piano</h2>
+  <section class="card" id="plan"></section>
+
+  <h2>Impostazioni</h2>
+  <section class="card set">
+    <div class="row">
+      <label for="amount">Versamento mensile</label>
+      <div class="stepper"><button type="button" id="minus" aria-label="Diminuisci di 25 euro">−</button><input id="amount" inputmode="numeric" autocomplete="off" aria-label="Euro al mese"><button type="button" id="plus" aria-label="Aumenta di 25 euro">+</button></div>
+    </div>
+    <div class="row col">
+      <span id="profile-label">Profilo</span>
+      <div class="seg" role="radiogroup" aria-labelledby="profile-label">
+        <button type="button" role="radio" data-p="prudente">Prudente</button>
+        <button type="button" role="radio" data-p="leva">Leva 2x</button>
+        <button type="button" role="radio" data-p="misto">Misto</button>
+      </div>
+      <p class="hint" id="profile-hint"></p>
+    </div>
+    <div class="row col" id="mix-row" hidden>
+      <label for="mix">Quota che segue il segnale: <b id="mix-val"></b></label>
+      <input type="range" id="mix" min="10" max="90" step="10">
+    </div>
+    <div class="row">
+      <label for="start">Primo versamento</label>
+      <select id="start"></select>
+    </div>
+  </section>
+  <p class="hint note" id="save-note">Le modifiche valgono dal prossimo versamento. Il bot le legge entro un’ora e ti conferma su Telegram.</p>
+  <button type="button" class="save" id="save" hidden>Salva impostazioni</button>
+
+  <h2 id="hist-title">Gli ultimi 10 anni con queste impostazioni</h2>
+  <section class="card">
+    <div class="stats" id="hist-stats"></div>
+    <div class="chart" id="hist-chart"></div>
+    <div class="legend" id="hist-legend"></div>
+    <p class="hint pad" id="hist-note" style="padding-top:0"></p>
+  </section>
+
+  <h2>S&amp;P 500 e media a 10 mesi</h2>
+  <section class="card">
+    <div class="chart" id="mk-chart"></div>
+    <div class="legend"><span><i style="background:var(--accent)"></i>S&amp;P 500 con dividendi (USD)</span><span><i style="background:var(--bh)"></i>Media 10 mesi</span></div>
+    <p class="hint pad" style="padding-top:0">Fine mese sopra la media: investito. Sotto: liquidità. Si decide solo all’ultima chiusura del mese.</p>
+  </section>
+
+  <p class="hint footer" id="footer"></p>
+</main>
+
+<script>
+(() => {
+  const tg = window.Telegram && window.Telegram.WebApp;
+  const inTelegram = !!tg && tg.platform && tg.platform !== 'unknown';
+  if (tg) {
+    tg.ready(); tg.expand();
+    const scheme = () => document.documentElement.setAttribute('data-scheme', tg.colorScheme || 'light');
+    if (inTelegram) { scheme(); tg.onEvent('themeChanged', scheme); }
+  }
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const nf = (d) => new Intl.NumberFormat('it-IT', { minimumFractionDigits: d, maximumFractionDigits: d });
+  const eur = (x) => `${nf(0).format(Math.round(x))} €`;
+  const pct = (x, d = 1) => `${x > 0 ? '+' : x < 0 ? '−' : ''}${nf(d).format(Math.abs(x * 100))}%`;
+  const MONTHS = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+  const SHORT = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+  const monthName = (ym) => `${MONTHS[+ym.slice(5, 7) - 1]} ${ym.slice(0, 4)}`;
+  const dmy = (s) => `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)}`;
+  const haptic = () => { try { tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged(); } catch (e) {} };
+
+  function decode() {
+    const h = location.hash.slice(1);
+    if (!h) return null;
+    try {
+      const b64 = h.replace(/-/g, '+').replace(/_/g, '/');
+      const bin = atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4));
+      return JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))));
+    } catch (e) { return null; }
+  }
+  const D = decode();
+  if (!D) {
+    $('app').replaceChildren(el('section', 'card empty'));
+    $('app').firstChild.append(el('p', null, 'Apri Vedetta dal pulsante «📱 Apri Vedetta» nella chat del bot su Telegram.'));
+    return;
+  }
+
+  /* signal */
+  const g = D.g, on = g.on === 1;
+  $('hero').classList.toggle('is-cash', !on);
+  $('rule').textContent = `S&P 500 · ${g.rule}`;
+  $('state').textContent = on ? 'Investito' : 'In liquidità';
+  const clamp = Math.max(-0.1, Math.min(0.1, g.d));
+  $('mark').style.left = `${50 + clamp * 500}%`;
+  $('meter').setAttribute('aria-label', `S&P 500 ${pct(g.d)} rispetto alla media a 10 mesi`);
+  const side = g.d >= 0 ? 'sopra' : 'sotto';
+  $('hero-sub').textContent = `Oggi l’indice è ${nf(1).format(Math.abs(g.d * 100))}% ${side} la sua media a 10 mesi. `
+    + ((g.pv === 1) === on ? 'Nessun cambio in vista.' : 'Se il mese finisse oggi, il segnale girerebbe.');
+  $('next').textContent = `chiusura del ${dmy(g.nx)}`;
+  $('since-label').textContent = on ? 'Investito dal' : 'In liquidità dal';
+  $('since').textContent = dmy(g.since);
+  $('action').textContent = D.a;
+  $('footer').textContent = `Dati al ${dmy(D.t)}. Simulazioni con i prezzi reali degli ETF su Xetra, al netto di costi e tasse. Non è consulenza finanziaria.`;
+
+  /* charts */
+  const NS = 'http://www.w3.org/2000/svg';
+  function lineChart(host, { labels, series, yFmt, tipLabel }) {
+    const draw = () => {
+      host.replaceChildren();
+      const W = Math.max(260, host.clientWidth), H = 190, m = { l: 46, r: 10, t: 10, b: 22 };
+      const pw = W - m.l - m.r, ph = H - m.t - m.b, n = labels.length;
+      const all = series.flatMap((s) => s.values);
+      let lo = Math.min(...all), hi = Math.max(...all);
+      if (series.some((s) => s.zero)) lo = Math.min(lo, 0);
+      const pad = (hi - lo) * 0.06 || 1; lo = series.some((s) => s.zero) ? lo : lo - pad; hi += pad;
+      const x = (i) => m.l + (n === 1 ? pw / 2 : (i / (n - 1)) * pw);
+      const y = (v) => m.t + (1 - (v - lo) / (hi - lo)) * ph;
+      const svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', host.dataset.label || '');
+      const add = (tag, a) => { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); svg.append(e); return e; };
+      const step = niceStep((hi - lo) / 4);
+      for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) {
+        add('line', { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), class: 'grid' });
+        add('text', { x: m.l - 6, y: y(v) + 3.5, 'text-anchor': 'end' }).textContent = yFmt(v);
+      }
+      [0, n - 1].forEach((i, k) => add('text', { x: x(i), y: H - 5, 'text-anchor': k ? 'end' : 'start' }).textContent = labels[i]);
+      for (const s of series) {
+        const d = s.values.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join('');
+        if (s.area) add('path', { d: `${d}L${x(n - 1)} ${y(lo)}L${x(0)} ${y(lo)}Z`, class: 'area', fill: s.color });
+        add('path', { d, class: `line${s.thin ? ' thin' : ''}`, stroke: s.color });
+        add('circle', { cx: x(n - 1), cy: y(s.values[n - 1]), r: 3.5, fill: s.color });
+      }
+      const cross = add('line', { y1: m.t, y2: m.t + ph, class: 'cross', visibility: 'hidden' });
+      const tip = el('div', 'tip'); tip.hidden = true;
+      const move = (clientX) => {
+        const r = svg.getBoundingClientRect(), sx = (clientX - r.left) * (W / r.width);
+        const i = Math.max(0, Math.min(n - 1, Math.round(((sx - m.l) / pw) * (n - 1))));
+        cross.setAttribute('x1', x(i)); cross.setAttribute('x2', x(i)); cross.setAttribute('visibility', 'visible');
+        tip.replaceChildren(el('div', 'hint', tipLabel ? tipLabel(i) : labels[i]));
+        for (const s of series) { const row = el('div'); row.append(el('b', null, yFmt(s.values[i], true)), document.createTextNode(` ${s.name}`)); tip.append(row); }
+        tip.hidden = false;
+        const px = (x(i) / W) * r.width, tw = tip.offsetWidth;
+        tip.style.left = `${px + 12 + tw > r.width ? Math.max(0, px - 12 - tw) : px + 12}px`;
+      };
+      const hide = () => { cross.setAttribute('visibility', 'hidden'); tip.hidden = true; };
+      svg.addEventListener('pointermove', (e) => move(e.clientX));
+      svg.addEventListener('pointerdown', (e) => move(e.clientX));
+      svg.addEventListener('pointerleave', hide);
+      host.append(svg, tip);
+    };
+    draw();
+    let w = host.clientWidth;
+    if (host._resize) host._resize.disconnect();
+    host._resize = new ResizeObserver(() => { if (Math.abs(host.clientWidth - w) > 2) { w = host.clientWidth; draw(); } });
+    host._resize.observe(host);
+    return draw;
+  }
+  function niceStep(raw) {
+    const p = 10 ** Math.floor(Math.log10(raw)), f = raw / p;
+    return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p;
+  }
+  const compact = (v, precise) => precise ? eur(v) : v >= 1000 ? `${nf(v >= 10000 ? 0 : 1).format(v / 1000)}k` : nf(0).format(v);
+
+  /* market chart */
+  (() => {
+    const mk = D.mk, n = mk.px.length;
+    const y0 = +mk.m0.slice(0, 4), m0 = +mk.m0.slice(5, 7) - 1;
+    const labels = mk.px.map((_, i) => i === n - 1 ? dmy(mk.last) : `${SHORT[(m0 + i) % 12]} ${y0 + Math.floor((m0 + i) / 12)}`);
+    $('mk-chart').dataset.label = 'S&P 500 e media a 10 mesi, ultimi 24 mesi';
+    lineChart($('mk-chart'), {
+      labels,
+      series: [{ name: 'S&P 500', values: mk.px, color: 'var(--accent)' }, { name: 'media 10 mesi', values: mk.sma, color: 'var(--bh)', thin: true }],
+      yFmt: (v) => nf(0).format(v),
+    });
+  })();
+
+  /* settings */
+  const S = { m: D.s.m, l: D.s.l, f: D.s.f, st: D.s.st };
+  const orig = JSON.stringify(S);
+  const profileOf = () => (S.f >= 0.999 ? (S.l === 2 ? 'leva' : 'prudente') : 'misto');
+  const HINTS = {
+    prudente: 'Ogni versamento segue il segnale con l’ETF S&P 500 (SXR8). Con il piano di accumulo di Trade Republic gli acquisti mensili sono gratis.',
+    leva: 'Ogni versamento segue il segnale con l’ETF S&P 500 2x (DBPG). Rende di più nei rialzi ma può perdere oltre il 50%. Non è nei piani di accumulo: ogni acquisto costa 1 €.',
+    misto: 'Una parte di ogni versamento va sempre nell’ETF S&P 500 e non si vende mai; il resto segue il segnale con l’ETF 2x.',
+  };
+  const startSel = $('start');
+  (() => {
+    const base = new Date(+D.t.slice(0, 4), +D.t.slice(5, 7) - 1, 1);
+    const opts = new Set();
+    for (let k = 1; k <= 6; k++) { const d = new Date(base.getFullYear(), base.getMonth() + k, 1); opts.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`); }
+    opts.add(S.st);
+    [...opts].sort().forEach((ym) => { const o = el('option', null, monthName(ym)); o.value = ym; startSel.append(o); });
+  })();
+
+  function render() {
+    $('amount').value = nf(0).format(S.m) + ' €';
+    $('minus').disabled = S.m <= 25;
+    const p = profileOf();
+    document.querySelectorAll('.seg button').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.p === p)));
+    $('profile-hint').textContent = HINTS[p];
+    $('mix-row').hidden = p !== 'misto';
+    $('mix').value = Math.round(S.f * 100);
+    $('mix-val').textContent = `${Math.round(S.f * 100)}% con l’ETF 2x, ${100 - Math.round(S.f * 100)}% sempre investito`;
+    startSel.value = S.st;
+    const dirty = JSON.stringify(S) !== orig;
+    if (inTelegram) {
+      tg.MainButton.setParams({ text: 'Salva impostazioni', is_visible: dirty, is_active: dirty });
+    } else {
+      $('save').hidden = false; $('save').disabled = true;
+      $('save-note').textContent = 'Per salvare apri Vedetta dal pulsante «📱 Apri Vedetta» nella chat del bot su Telegram.';
+    }
+    renderHistory();
+  }
+  const setAmount = (v) => { S.m = Math.max(25, Math.min(5000, Math.round(v / 5) * 5)); haptic(); render(); };
+  $('minus').addEventListener('click', () => setAmount(S.m - 25));
+  $('plus').addEventListener('click', () => setAmount(S.m + 25));
+  $('amount').addEventListener('focus', (e) => { e.target.value = String(S.m); e.target.select(); });
+  $('amount').addEventListener('change', (e) => { const v = parseFloat(e.target.value.replace(',', '.')); if (isFinite(v)) setAmount(v); else render(); });
+  $('amount').addEventListener('blur', () => render());
+  document.querySelectorAll('.seg button').forEach((b) => b.addEventListener('click', () => {
+    if (b.dataset.p === 'prudente') { S.l = 1; S.f = 1; }
+    if (b.dataset.p === 'leva') { S.l = 2; S.f = 1; }
+    if (b.dataset.p === 'misto') { S.l = 2; S.f = S.f < 0.999 ? S.f : 0.3; }
+    haptic(); render();
+  }));
+  $('mix').addEventListener('input', (e) => { S.f = +e.target.value / 100; haptic(); render(); });
+  startSel.addEventListener('change', () => { S.st = startSel.value; haptic(); render(); });
+  if (inTelegram) {
+    tg.MainButton.onClick(() => {
+      try { tg.sendData(JSON.stringify({ m: S.m, l: S.l, f: S.f, st: S.st })); }
+      catch (e) { tg.showAlert('Per salvare apri Vedetta dal pulsante «📱 Apri Vedetta» in fondo alla chat del bot.'); }
+    });
+  }
+
+  /* your plan */
+  (() => {
+    const host = $('plan'), P = D.p;
+    if (!P || !P.h || !P.h.length) {
+      const box = el('div', 'pad');
+      box.append(el('p', null, `Il piano parte a ${monthName(D.s.st)}.`), el('p', 'hint', 'Qui vedrai quanto hai versato, quanto vale e come cambia mese per mese, supponendo che tu segua i segnali.'));
+      box.firstChild.style.margin = '0 0 6px';
+      host.append(box);
+      return;
+    }
+    const stats = el('div', 'stats');
+    const gain = P.v / P.c - 1;
+    [['Versati', eur(P.c)], ['Valore', eur(P.v)], ['Rendimento', pct(gain)]].forEach(([k, v]) => { const s = el('div', 'stat'); s.append(el('b', 'num', v), el('span', null, k)); stats.append(s); });
+    host.append(stats);
+    if (P.h.length > 1) {
+      const chart = el('div', 'chart'); chart.dataset.label = 'Valore del tuo piano e somma versata';
+      host.append(chart);
+      lineChart(chart, {
+        labels: P.h.map((r) => monthName(r[0])),
+        series: [{ name: 'valore', values: P.h.map((r) => r[2]), color: 'var(--accent)', area: true, zero: true }, { name: 'versati', values: P.h.map((r) => r[1]), color: 'var(--hint)', thin: true, zero: true }],
+        yFmt: compact,
+      });
+    }
+    const note = el('p', 'hint pad', `In ETF ${eur(P.e)}, liquidità ${eur(P.k)}. Se vendessi tutto oggi, dopo le tasse: ${eur(P.a)}.`);
+    note.style.paddingTop = '4px';
+    host.append(note);
+  })();
+
+  /* 10-year history, rescaled to the chosen monthly amount */
+  let histDraw = null;
+  function renderHistory() {
+    const H = D.h;
+    if (!H) { $('hist-title').hidden = true; return; }
+    const k = S.m / 100, p = profileOf();
+    const mine = () => {
+      if (p === 'prudente') return H.s1.map((v) => v * k);
+      if (p === 'leva') return H.s2.map((v) => v * k);
+      return H.bh.map((v, i) => ((1 - S.f) * v + S.f * H.s2[i]) * k);
+    };
+    const fin = p === 'prudente' ? H.fa.s1 : p === 'leva' ? H.fa.s2 : (1 - S.f) * H.fa.bh + S.f * H.fa.s2;
+    const stats = $('hist-stats');
+    stats.replaceChildren();
+    [['Versati', eur(H.fc * k), null], ['Buy & hold', eur(H.fa.bh * k), 'var(--bh)'], ['Il tuo profilo', eur(fin * k), 'var(--accent)']].forEach(([lab, v, c]) => {
+      const s = el('div', 'stat'); const span = el('span');
+      if (c) { const i = el('i', 'key'); i.style.background = c; span.append(i); }
+      span.append(document.createTextNode(lab)); s.append(el('b', 'num', v), span); stats.append(s);
+    });
+    const labels = H.c.map((_, i) => String(H.y0 + i));
+    const ch = $('hist-chart'); ch.dataset.label = 'Simulazione degli ultimi 10 anni';
+    lineChart(ch, {
+      labels, tipLabel: (i) => `fine ${labels[i]}`,
+      series: [
+        { name: 'il tuo profilo', values: mine(), color: 'var(--accent)', zero: true },
+        { name: 'buy & hold', values: H.bh.map((v) => v * k), color: 'var(--bh)', zero: true },
+        { name: 'versati', values: H.c.map((v) => v * k), color: 'var(--hint)', thin: true, zero: true },
+      ],
+      yFmt: compact,
+    });
+    const leg = $('hist-legend');
+    leg.replaceChildren();
+    [['Il tuo profilo', 'var(--accent)'], ['Buy & hold', 'var(--bh)'], ['Versati', 'var(--hint)']].forEach(([t, c]) => { const s = el('span'); const i = el('i'); i.style.background = c; s.append(i, document.createTextNode(t)); leg.append(s); });
+    const diff = fin - H.fa.bh;
+    $('hist-note').textContent = `Piano da ${eur(S.m)} al mese da ${monthName(H.from)}, valori finali dopo le tasse. `
+      + (Math.abs(diff) < 0.02 * H.fa.bh ? 'In questi 10 anni il tuo profilo e il buy & hold sono finiti quasi pari.'
+        : diff > 0 ? `In questi 10 anni il tuo profilo ha fatto ${eur(diff * k)} più del buy & hold.`
+          : `In questi 10 anni il tuo profilo ha fatto ${eur(-diff * k)} meno del buy & hold: il segnale protegge dai crolli lunghi, non batte un mercato che sale.`);
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
